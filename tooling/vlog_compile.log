@@ -1,0 +1,11 @@
+Model Technology ModelSim ALTERA vlog 10.1d Compiler 2012.11 Nov  2 2012
+vlog.exe -work work -l ./vlog_compile.log -override_timescale 1 ps / 1 ps ../src/simulation/modules/alu.v ../src/simulation/modules/register.v ../src/simulation/top.v 
+-- Compiling module alu
+** Warning: ../src/simulation/modules/alu.v(41): (vlog-2283) Extra semicolon in $unit (global) scope.
+-- Compiling module register
+** Warning: ../src/simulation/modules/register.v(48): (vlog-2283) Extra semicolon in $unit (global) scope.
+-- Compiling module top
+** Warning: ../src/simulation/top.v(61): (vlog-2283) Extra semicolon in $unit (global) scope.
+
+Top level modules:
+	top
