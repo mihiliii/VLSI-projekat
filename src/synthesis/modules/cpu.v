@@ -33,6 +33,9 @@ module cpu #(
     assign mem_addr = r_mem_addr;
     assign mem_data = r_mem_data;
 
+    reg [DATA_WIDTH-1:0] r_out;
+    assign out = r_out;
+
     /**
     *
     */
@@ -58,14 +61,14 @@ module cpu #(
     *
     */ 
 
-    localparam INSTR_MOV  = 4'b0000;
-    localparam INSTR_IN   = 4'b0111;
-    localparam INSTR_OUT  = 4'b1000;
-    localparam INSTR_ADD  = 4'b0001;
-    localparam INSTR_SUB  = 4'b0010;
-    localparam INSTR_MUL  = 4'b0011;
-    localparam INSTR_DIV  = 4'b0100;
-    localparam INSTR_STOP = 4'b1111; 
+    localparam INSTRUCTION_MOV  = 4'b0000;
+    localparam INSTRUCTION_IN   = 4'b0111;
+    localparam INSTRUCTION_OUT  = 4'b1000;
+    localparam INSTRUCTION_ADD  = 4'b0001;
+    localparam INSTRUCTION_SUB  = 4'b0010;
+    localparam INSTRUCTION_MUL  = 4'b0011;
+    localparam INSTRUCTION_DIV  = 4'b0100;
+    localparam INSTRUCTION_STOP = 4'b1111; 
 
     wire [3:0] op_code, addr1, addr2, addr3;
     assign op_code = IR_out[15:12];
@@ -106,24 +109,26 @@ module cpu #(
         PC_inc = 1'b0;
         A_ld = 1'b0;
         case (phase)
-            0: begin
+            0: begin // fetch0
                 r_mem_we = MEM_WE_READ;
                 r_mem_addr = PC_out;
             end
-            1: begin
+            1: begin // fetch1
                 IR_in = mem_in;
                 IR_ld = 1'b1;
                 PC_inc = 1'b1;
             end
-            2: begin
+            2: begin // decode
                 case (op_code)
-                    // INSTR_MOV:
-                    //     // na kraju 
-                    INSTR_IN:
+                    INSTRUCTION_IN:
                         phase_next = 3;
+                    INSTRUCTION_OUT:
+                        phase_next = 6;
+                    INSTRUCTION_ADD:
+                        phase_next = 9;
                 endcase
             end
-            3: begin
+            3: begin // in0
                 r_mem_addr = addr1[2:0];
                 if (addr1[3]) begin
                     r_mem_we = MEM_WE_READ;
@@ -134,14 +139,37 @@ module cpu #(
                     phase_next = 0;
                 end
             end
-            4: begin
+            4: begin // in1
                 A_in = mem_in;
                 A_ld = 1'b1;
             end
-            5: begin
+            5: begin // in2
                 r_mem_we = MEM_WE_WRITE;
                 r_mem_addr = A_out;
                 r_mem_data = in;
+                phase_next = 0;
+            end
+            6: begin // out0
+                r_mem_we = MEM_WE_READ;
+                r_mem_addr = addr1[2:0];
+                if (addr1[3] == 0) begin
+                    phase_next = 9;
+                end
+            end
+            7: begin // out1
+                A_in = mem_in;
+                A_ld = 1'b1;
+            end
+            8: begin // out2
+                r_mem_we = MEM_WE_READ;
+                r_mem_addr = A_out;
+            end
+            9: begin // out3
+                r_out = mem_in;
+                phase_next = 0;
+            end
+            10: begin // add
+                
             end
         endcase
     end
