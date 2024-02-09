@@ -19,8 +19,8 @@ module cpu #(
     wire [31:0] w_dummy32;
 
     // init parameters
-    localparam ADDR_FIRST_INSTRUCTION = 6'd8;
-    localparam ADDR_STACK_POINTER     = 6'd63;
+    localparam INIT_FIRST_INSTRUCTION = 6'd8;
+    localparam INIT_STACK_POINTER     = 6'd63;
 
     
     localparam MEM_WE_READ  = 1'b0;
@@ -76,14 +76,21 @@ module cpu #(
     assign addr2 = IR_out[7:4];
     assign addr3 = IR_out[3:0];
 
+    reg [3:0] alu_oc;
+    wire [DATA_WIDTH-1:0] alu_a;
+    wire [DATA_WIDTH-1:0] alu_b;
+    wire [DATA_WIDTH-1:0] alu_out;
+    assign alu_a = A_out;
+    assign alu_b = mem_in;
+    assign alu_out = A_in;
 
     register #(6) PC(
-        .clk(clk), .rst_n(rst_n), .out(PC_out), .ld(PC_ld), .in(ADDR_FIRST_INSTRUCTION),
+        .clk(clk), .rst_n(rst_n), .out(PC_out), .ld(PC_ld), .in(INIT_FIRST_INSTRUCTION),
         .inc(PC_inc),
         .cl(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
     register #(6) SP(
-        .clk(clk), .rst_n(rst_n), .out(SP_out), .ld(SP_ld), .in(ADDR_STACK_POINTER), .dec(SP_dec),
+        .clk(clk), .rst_n(rst_n), .out(SP_out), .ld(SP_ld), .in(INIT_STACK_POINTER), .dec(SP_dec),
         .cl(1'b0), .inc(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
     register #(16) IR(
@@ -93,6 +100,7 @@ module cpu #(
     register #(16) A(.clk(clk), .rst_n(rst_n), .out(A_out), .ld(A_ld), .in(A_in),
         .cl(1'b0), .inc(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
+    alu #(16) ALU(.oc(alu_oc), .a(alu_a), .b(alu_b), .f(alu_out));
 
     always @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
@@ -168,8 +176,28 @@ module cpu #(
                 r_out = mem_in;
                 phase_next = 0;
             end
-            10: begin // add
-                
+            10: begin // add0
+                r_mem_we = MEM_WE_READ;
+                r_mem_addr = addr2[2:0];
+                // if (addr2[3] == 1) begin
+                //     phase_next = ..;
+                // end
+            end
+            11: begin // add1
+                A_in = mem_in;
+                A_ld = 1'b1;
+                r_mem_we = MEM_WE_READ;
+                r_mem_addr = addr3[2:0];
+                // if (addr3[3] == 1) begin
+                //     phase_next = ...;
+                // end
+            end
+            12: begin // add2
+                A_in = alu_out;
+                A_ld = 1'b1;
+                // if (addr3[3] == 1) begin
+                //     phase_next = ...;
+                // end
             end
         endcase
     end
