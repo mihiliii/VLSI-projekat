@@ -6,60 +6,20 @@ module cpu #(
     input rst_n,
     input [DATA_WIDTH-1:0] mem_in,
     input [DATA_WIDTH-1:0] in,
-    output mem_we,
-    output [ADDR_WIDTH-1:0] mem_addr,
-    output [DATA_WIDTH-1:0] mem_data,
-    output [DATA_WIDTH-1:0] out,
+    output reg mem_we,
+    output reg [ADDR_WIDTH-1:0] mem_addr,
+    output reg [DATA_WIDTH-1:0] mem_data,
+    output reg [DATA_WIDTH-1:0] out,
     output [ADDR_WIDTH-1:0] pc,
     output [ADDR_WIDTH-1:0] sp
 );
 
-    // dummy registers
-    wire [15:0] w_dummy16;
-    wire [31:0] w_dummy32;
-
-    // init parameters
+    // local parameters
     localparam INIT_FIRST_INSTRUCTION = 6'd8;
     localparam INIT_STACK_POINTER     = 6'd63;
 
-    
-    localparam MEM_WE_READ  = 1'b0;
-    localparam MEM_WE_WRITE = 1'b1;
-
-    reg r_mem_we;
-    reg [ADDR_WIDTH-1:0] r_mem_addr;
-    reg [DATA_WIDTH-1:0] r_mem_data;
-    assign mem_we   = r_mem_we;
-    assign mem_addr = r_mem_addr;
-    assign mem_data = r_mem_data;
-
-    reg [DATA_WIDTH-1:0] r_out;
-    assign out = r_out;
-
-    /**
-    *
-    */
-
-    reg [3:0] phase, phase_next;
-
-    reg PC_ld, PC_inc;
-    wire [ADDR_WIDTH-1:0] PC_out;
-    assign pc = PC_out;
-
-    reg SP_ld, SP_dec;
-    wire [ADDR_WIDTH-1:0] SP_out;
-    assign sp = SP_out;
-
-    reg IR_ld;
-    reg [DATA_WIDTH-1:0] IR_in, IR_out;
-
-    reg A_ld;
-    reg [DATA_WIDTH-1:0] A_in;
-    wire [DATA_WIDTH-1:0] A_out;
-
-    /**
-    *
-    */ 
+    localparam MEM_WE_READ_BIT  = 1'b0;
+    localparam MEM_WE_WRITE_BIT = 1'b1;
 
     localparam INSTRUCTION_MOV  = 4'b0000;
     localparam INSTRUCTION_IN   = 4'b0111;
@@ -70,19 +30,52 @@ module cpu #(
     localparam INSTRUCTION_DIV  = 4'b0100;
     localparam INSTRUCTION_STOP = 4'b1111; 
 
-    wire [3:0] op_code, addr1, addr2, addr3;
-    assign op_code = IR_out[15:12];
-    assign addr1 = IR_out[11:8];
-    assign addr2 = IR_out[7:4];
-    assign addr3 = IR_out[3:0];
+    localparam ADDR_DIRECT_BIT   = 1'b0;
+    localparam ADDR_INDIRECT_BIT = 1'b1;
 
-    reg [3:0] alu_oc;
-    wire [DATA_WIDTH-1:0] alu_a;
-    wire [DATA_WIDTH-1:0] alu_b;
-    wire [DATA_WIDTH-1:0] alu_out;
-    assign alu_a = A_out;
-    assign alu_b = mem_in;
-    assign alu_out = A_in;
+    reg [4:0] state, state_next;
+    reg [DATA_WIDTH-1:0] out_next;
+
+    reg PC_ld, PC_inc;
+    wire [ADDR_WIDTH-1:0] PC_out;
+    assign pc = PC_out;
+
+    reg SP_ld, SP_dec, SP_inc;
+    wire [ADDR_WIDTH-1:0] SP_out;
+    assign sp = SP_out;
+
+    reg IR_HIGH_ld;
+    wire [DATA_WIDTH-1:0] IR_HIGH_in;
+    wire [DATA_WIDTH-1:0] IR_HIGH_out;
+    assign IR_HIGH_in = mem_in;
+
+    reg IR_LOW_ld;
+    wire [DATA_WIDTH-1:0] IR_LOW_in;
+    wire [DATA_WIDTH-1:0] IR_LOW_out;
+    assign IR_LOW_in = mem_in;
+
+    reg A_ld;
+    reg [DATA_WIDTH-1:0] A_in;
+    wire [DATA_WIDTH-1:0] A_out;
+
+    wire [3:0] IR_OP_CODE;
+    wire IR_ADDRESS1_DI, IR_ADDRESS2_DI, IR_ADDRESS3_DI;
+    wire [2:0] IR_ADDRESS1, IR_ADDRESS2, IR_ADDRESS3;
+    assign IR_OP_CODE     = IR_HIGH_out[15:12];
+    assign IR_ADDRESS1_DI = IR_HIGH_out[11];
+    assign IR_ADDRESS1    = IR_HIGH_out[10:8];
+    assign IR_ADDRESS2_DI = IR_HIGH_out[7];
+    assign IR_ADDRESS2    = IR_HIGH_out[6:4];
+    assign IR_ADDRESS3_DI = IR_HIGH_out[3];
+    assign IR_ADDRESS3    = IR_HIGH_out[2:0];
+
+    reg [3:0] ALU_oc;
+    wire [DATA_WIDTH-1:0] ALU_a;
+    wire [DATA_WIDTH-1:0] ALU_b;
+    wire [DATA_WIDTH-1:0] ALU_out;
+    assign ALU_a = A_out;
+    assign ALU_b = mem_in;
+    assign ALU_out = A_in;
 
     register #(6) PC(
         .clk(clk), .rst_n(rst_n), .out(PC_out), .ld(PC_ld), .in(INIT_FIRST_INSTRUCTION),
@@ -91,114 +84,144 @@ module cpu #(
     );
     register #(6) SP(
         .clk(clk), .rst_n(rst_n), .out(SP_out), .ld(SP_ld), .in(INIT_STACK_POINTER), .dec(SP_dec),
-        .cl(1'b0), .inc(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
+        .inc(SP_inc),
+        .cl(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
-    register #(16) IR(
-        .clk(clk), .rst_n(rst_n), .in(IR_in), .ld(IR_ld),
-        .out(w_dummy16), .cl(1'b0), .inc(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
+    register #(16) IR_HIGH(
+        .clk(clk), .rst_n(rst_n), .in(IR_HIGH_in), .ld(IR_HIGH_ld), .out(IR_HIGH_out), 
+        .cl(1'b0), .inc(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
+    );
+    register #(16) IR_LOW(
+        .clk(clk), .rst_n(rst_n), .in(IR_LOW_in), .ld(IR_LOW_ld), .out(IR_LOW_out),
+        .cl(1'b0), .inc(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
     register #(16) A(.clk(clk), .rst_n(rst_n), .out(A_out), .ld(A_ld), .in(A_in),
         .cl(1'b0), .inc(1'b0), .dec(1'b0), .sr(1'b0), .ir(1'b0), .sl(1'b0), .il(1'b0)
     );
-    alu #(16) ALU(.oc(alu_oc), .a(alu_a), .b(alu_b), .f(alu_out));
+    alu #(16) ALU(.oc(ALU_oc), .a(ALU_a), .b(ALU_b), .f(ALU_out));
 
     always @(posedge clk, negedge rst_n) begin
         if (!rst_n) begin
-            
+            state <= 0;
+            out <= 0;
         end 
         else begin
-            phase <= phase_next;
+            state <= state_next;
+            out <= out_next;
         end
     end
 
     always @(*) begin
-        phase_next = phase + 1'b1;
-        IR_ld = 1'b0;
+        state_next = state + 1'b1;
+        out_next = out;
+        PC_ld = 1'b0;
         PC_inc = 1'b0;
+        SP_ld = 1'b0;
+        SP_dec = 1'b0;
+        SP_inc = 1'b0;
+        IR_HIGH_ld = 1'b0;
+        IR_LOW_ld = 1'b0;
         A_ld = 1'b0;
-        case (phase)
-            0: begin // fetch0
-                r_mem_we = MEM_WE_READ;
-                r_mem_addr = PC_out;
+        mem_we = 1'bz;
+        mem_addr = {(ADDR_WIDTH-1){1'bz}};
+        mem_data = {(DATA_WIDTH-1){1'bz}};
+        
+        case (state)
+            5'd0: begin // INIT
+                PC_ld = 1'b1;
+                SP_ld = 1'b1;
             end
-            1: begin // fetch1
-                IR_in = mem_in;
-                IR_ld = 1'b1;
+            5'd1: begin // FETCH0;
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = PC_out;
+            end
+            5'd2: begin // FETCH1;
+                IR_HIGH_ld = 1'b1;
                 PC_inc = 1'b1;
             end
-            2: begin // decode
-                case (op_code)
+            5'd3: begin // DECODE0;
+                case (IR_OP_CODE)
                     INSTRUCTION_IN:
-                        phase_next = 3;
+                        state_next = 5'd6; // IN0
                     INSTRUCTION_OUT:
-                        phase_next = 6;
-                    INSTRUCTION_ADD:
-                        phase_next = 9;
+                        state_next = 5'd9;
+                    // INSTRUCTION_ADD:
+                    //     state_next = 9;
+                    // INSTRUCTION_MOV:
+                    //     if (IR_ADDRESS3_DI == ADDR_INDIRECT_BIT)
+                    //         state_next = 4; // FETCH2
+                    //     else
+                    //         state_next = ...; // ...
                 endcase
             end
-            3: begin // in0
-                r_mem_addr = addr1[2:0];
-                if (addr1[3]) begin
-                    r_mem_we = MEM_WE_READ;
-                end
-                else begin
-                    r_mem_we = MEM_WE_WRITE;
-                    r_mem_data = in;
-                    phase_next = 0;
-                end
+            5'd4: begin // FETCH2
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = PC_out; 
             end
-            4: begin // in1
-                A_in = mem_in;
-                A_ld = 1'b1;
+            5'd5: begin // FETCH3
+                IR_LOW_ld = 1'b1;
+                PC_inc = 1'b1;
             end
-            5: begin // in2
-                r_mem_we = MEM_WE_WRITE;
-                r_mem_addr = A_out;
-                r_mem_data = in;
-                phase_next = 0;
-            end
-            6: begin // out0
-                r_mem_we = MEM_WE_READ;
-                r_mem_addr = addr1[2:0];
-                if (addr1[3] == 0) begin
-                    phase_next = 9;
+            5'd6: begin // IN0
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = IR_ADDRESS1;
+                if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT) begin
+                    state_next = 8; // IN2
                 end
             end
-            7: begin // out1
-                A_in = mem_in;
-                A_ld = 1'b1;
+            5'd7: begin // IN1
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = mem_in;
             end
-            8: begin // out2
-                r_mem_we = MEM_WE_READ;
-                r_mem_addr = A_out;
+            5'd8: begin // IN2
+                mem_we = MEM_WE_WRITE_BIT;
+                mem_addr = mem_in;
+                mem_data = in;
+                state_next = 1; // FETCH0
             end
-            9: begin // out3
-                r_out = mem_in;
-                phase_next = 0;
+            5'd9: begin // OUT0
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = IR_ADDRESS1;
+                if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT) begin
+                    state_next = 11; // OUT2
+                end
             end
-            10: begin // add0
-                r_mem_we = MEM_WE_READ;
-                r_mem_addr = addr2[2:0];
-                // if (addr2[3] == 1) begin
-                //     phase_next = ..;
-                // end
+            5'd10: begin // OUT1
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = mem_in;
             end
-            11: begin // add1
-                A_in = mem_in;
-                A_ld = 1'b1;
-                r_mem_we = MEM_WE_READ;
-                r_mem_addr = addr3[2:0];
-                // if (addr3[3] == 1) begin
-                //     phase_next = ...;
-                // end
+            5'd11: begin // OUT2
+                out_next = mem_in;
+                state_next = 1; // FETCH0
             end
-            12: begin // add2
-                A_in = alu_out;
-                A_ld = 1'b1;
-                // if (addr3[3] == 1) begin
-                //     phase_next = ...;
-                // end
+            5'd12: begin
+                state_next <= 5'd12;
             end
+            // 10: begin // add0
+            //     mem_we = MEM_WE_READ_BIT;
+            //     mem_addr = addr2[2:0];
+            //     // if (addr2[3] == 1) begin
+            //     //     state_next = ..;
+            //     // end
+            // end
+            // 11: begin // add1
+            //     A_in = mem_in;
+            //     A_ld = 1'b1;
+            //     mem_we = MEM_WE_READ_BIT;
+            //     mem_addr = addr3[2:0];
+            //     // if (addr3[3] == 1) begin
+            //     //     state_next = ...;
+            //     // end
+            // end
+            // 12: begin // add2
+            //     A_in = alu_out;
+            //     A_ld = 1'b1;
+            //     // if (addr3[3] == 1) begin
+            //     //     state_next = ...;
+            //     // end
+            // end
+            default:
+                state_next <= 5'd12;
         endcase
     end
 

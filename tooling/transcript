@@ -1,3 +1,0 @@
-# vsim -do ./config/waveform-define.do -view ./waveform.wlf 
-# ./waveform.wlf opened as dataset "waveform"
-# do ./config/waveform-define.do 

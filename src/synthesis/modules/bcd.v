@@ -9,4 +9,4 @@ module bcd(
         tens <= in / 10; 
     end
 
-endmodule;
+endmodule
