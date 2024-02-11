@@ -75,7 +75,6 @@ module cpu #(
     wire [DATA_WIDTH-1:0] ALU_out;
     assign ALU_a = A_out;
     assign ALU_b = mem_in;
-    assign ALU_out = A_in;
 
     register #(6) PC(
         .clk(clk), .rst_n(rst_n), .out(PC_out), .ld(PC_ld), .in(INIT_FIRST_INSTRUCTION),
@@ -122,6 +121,7 @@ module cpu #(
         IR_HIGH_ld = 1'b0;
         IR_LOW_ld = 1'b0;
         A_ld = 1'b0;
+        A_in = ALU_out;
         mem_we = 1'bz;
         mem_addr = {(ADDR_WIDTH-1){1'bz}};
         mem_data = {(DATA_WIDTH-1){1'bz}};
@@ -144,14 +144,12 @@ module cpu #(
                     INSTRUCTION_IN:
                         state_next = 5'd6; // IN0
                     INSTRUCTION_OUT:
-                        state_next = 5'd9;
-                    // INSTRUCTION_ADD:
-                    //     state_next = 9;
-                    // INSTRUCTION_MOV:
-                    //     if (IR_ADDRESS3_DI == ADDR_INDIRECT_BIT)
-                    //         state_next = 4; // FETCH2
-                    //     else
-                    //         state_next = ...; // ...
+                        state_next = 5'd9; // OUT0
+                    INSTRUCTION_ADD:
+                        state_next = 5'd12; // ADD0
+                    INSTRUCTION_MOV:
+                        if ({IR_ADDRESS3_DI, IR_ADDRESS3} == 4'h0)
+                            state_next = 5'd12; // MOV0
                 endcase
             end
             5'd4: begin // FETCH2
@@ -177,13 +175,13 @@ module cpu #(
                 mem_we = MEM_WE_WRITE_BIT;
                 mem_addr = mem_in;
                 mem_data = in;
-                state_next = 1; // FETCH0
+                state_next = 5'd1; // FETCH0
             end
             5'd9: begin // OUT0
                 mem_we = MEM_WE_READ_BIT;
                 mem_addr = IR_ADDRESS1;
                 if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT) begin
-                    state_next = 11; // OUT2
+                    state_next = 5'd11; // OUT2
                 end
             end
             5'd10: begin // OUT1
@@ -194,34 +192,49 @@ module cpu #(
                 out_next = mem_in;
                 state_next = 1; // FETCH0
             end
-            5'd12: begin
-                state_next <= 5'd12;
+            5'd12: begin // ADD0
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = IR_ADDRESS2;
+                if (IR_ADDRESS2_DI == ADDR_DIRECT_BIT) begin
+                    state_next = 5'd14;    
+                end
             end
-            // 10: begin // add0
-            //     mem_we = MEM_WE_READ_BIT;
-            //     mem_addr = addr2[2:0];
-            //     // if (addr2[3] == 1) begin
-            //     //     state_next = ..;
-            //     // end
-            // end
-            // 11: begin // add1
-            //     A_in = mem_in;
-            //     A_ld = 1'b1;
-            //     mem_we = MEM_WE_READ_BIT;
-            //     mem_addr = addr3[2:0];
-            //     // if (addr3[3] == 1) begin
-            //     //     state_next = ...;
-            //     // end
-            // end
-            // 12: begin // add2
-            //     A_in = alu_out;
-            //     A_ld = 1'b1;
-            //     // if (addr3[3] == 1) begin
-            //     //     state_next = ...;
-            //     // end
-            // end
+            5'd13: begin // ADD1
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = mem_in;
+            end
+            5'd14: begin // ADD2
+                A_in = mem_in;
+                A_ld = 1'b1;
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = IR_ADDRESS3;
+                if (IR_ADDRESS3_DI == ADDR_DIRECT_BIT) begin
+                    state_next = 5'd16;    
+                end
+            end
+            5'd15: begin // ADD3
+                mem_we = MEM_WE_READ_BIT;
+                mem_addr = mem_in;
+            end
+            5'd16: begin // ADD4
+                // A_in = ALU_out;
+                A_ld = 1'b1;
+                if (IR_ADDRESS1_DI == ADDR_INDIRECT_BIT) begin
+                    mem_we = MEM_WE_READ_BIT;
+                    mem_addr = IR_ADDRESS1;
+                end
+            end
+            5'd17: begin // ADD5
+                mem_we = MEM_WE_WRITE_BIT;
+                mem_data = A_out;
+                if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT)
+                    mem_addr = IR_ADDRESS1;
+                else if (IR_ADDRESS1_DI == ADDR_INDIRECT_BIT)
+                    mem_addr = mem_in;
+                state_next <= 5'd1;
+            end
             default:
-                state_next <= 5'd12;
+                state_next <= state;
         endcase
     end
 
