@@ -30,6 +30,15 @@ module cpu #(
     localparam INSTRUCTION_DIV  = 4'b0100;
     localparam INSTRUCTION_STOP = 4'b1111; 
 
+    localparam ALU_OPERATION_ADD = 3'b000;
+    localparam ALU_OPERATION_SUB = 3'b001;
+    localparam ALU_OPERATION_MUL = 3'b010;
+    localparam ALU_OPERATION_DIV = 3'b011;
+    localparam ALU_OPERATION_NOT = 3'b100;
+    localparam ALU_OPERATION_XOR = 3'b101;
+    localparam ALU_OPERATION_OR  = 3'b110;
+    localparam ALU_OPERATION_AND = 3'b111;
+
     localparam ADDR_DIRECT_BIT   = 1'b0;
     localparam ADDR_INDIRECT_BIT = 1'b1;
 
@@ -122,6 +131,7 @@ module cpu #(
         IR_LOW_ld = 1'b0;
         A_ld = 1'b0;
         A_in = ALU_out;
+        ALU_oc = 4'h0;
         mem_we = 1'bz;
         mem_addr = {(ADDR_WIDTH-1){1'bz}};
         mem_data = {(DATA_WIDTH-1){1'bz}};
@@ -192,18 +202,18 @@ module cpu #(
                 out_next = mem_in;
                 state_next = 1; // FETCH0
             end
-            5'd12: begin // ADD0
+            5'd12: begin // ALU0
                 mem_we = MEM_WE_READ_BIT;
                 mem_addr = IR_ADDRESS2;
                 if (IR_ADDRESS2_DI == ADDR_DIRECT_BIT) begin
                     state_next = 5'd14;    
                 end
             end
-            5'd13: begin // ADD1
+            5'd13: begin // ALU1
                 mem_we = MEM_WE_READ_BIT;
                 mem_addr = mem_in;
             end
-            5'd14: begin // ADD2
+            5'd14: begin // ALU2
                 A_in = mem_in;
                 A_ld = 1'b1;
                 mem_we = MEM_WE_READ_BIT;
@@ -212,19 +222,29 @@ module cpu #(
                     state_next = 5'd16;    
                 end
             end
-            5'd15: begin // ADD3
+            5'd15: begin // ALU3
                 mem_we = MEM_WE_READ_BIT;
                 mem_addr = mem_in;
             end
-            5'd16: begin // ADD4
-                // A_in = ALU_out;
+            5'd16: begin // ALU4
+                case (IR_OP_CODE)
+                    INSTRUCTION_ADD:
+                        ALU_oc = ALU_OPERATION_ADD;
+                    INSTRUCTION_SUB:
+                        ALU_oc = ALU_OPERATION_SUB;
+                    INSTRUCTION_MUL:
+                        ALU_oc = ALU_OPERATION_MUL;
+                    default:
+                        ALU_oc = ALU_OPERATION_ADD;
+                endcase;
+                A_in = ALU_out;
                 A_ld = 1'b1;
                 if (IR_ADDRESS1_DI == ADDR_INDIRECT_BIT) begin
                     mem_we = MEM_WE_READ_BIT;
                     mem_addr = IR_ADDRESS1;
                 end
             end
-            5'd17: begin // ADD5
+            5'd17: begin // ALU5
                 mem_we = MEM_WE_WRITE_BIT;
                 mem_data = A_out;
                 if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT)
