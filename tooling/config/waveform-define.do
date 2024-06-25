@@ -12,6 +12,10 @@ add wave -noupdate /top/ir
 add wave -noupdate /top/sl
 add wave -noupdate /top/il
 add wave -noupdate /top/out
+add wave -noupdate /top/oc
+add wave -noupdate /top/a
+add wave -noupdate /top/b
+add wave -noupdate /top/f
 TreeUpdate [SetDefaultTree]
 WaveRestoreCursors {{Cursor 1} {0 ps} 0}
 quietly wave cursor active 0

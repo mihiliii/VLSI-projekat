@@ -35,7 +35,7 @@ module alu #(
             AND:
                 f = a & b;
             default: 
-                f = 4'h0;
+                f = {DATA_WIDTH{1'b0}};
         endcase
     end
 

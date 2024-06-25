@@ -5,8 +5,8 @@ module bcd(
 );
 
     always @(*) begin
-        ones <= in % 10;
-        tens <= in / 10; 
+        ones <= in % 6'd10;
+        tens <= in / 6'd10; 
     end
 
 endmodule

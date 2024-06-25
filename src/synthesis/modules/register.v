@@ -43,13 +43,13 @@ module register #(
             if (DATA_WIDTH == 1)
                 out_next = ir;
             else
-                out_next = { ir, out_reg[DATA_WIDTH-1:1] };
+                out_next = {ir, out_reg[DATA_WIDTH-1:1]};
         end
         else if (sl) begin
             if (DATA_WIDTH == 1)
                 out_next = il;
             else
-                out_next = { out_reg[DATA_WIDTH-2:0], il };
+                out_next = {out_reg[DATA_WIDTH-2:0], il};
         end
     end
 
