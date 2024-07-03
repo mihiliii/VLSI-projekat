@@ -20,7 +20,7 @@ module top;
 
     initial begin
         $monitor("time = %4d oc = %b a = %b b = %b f = %b", $time, oc, a, b, f);
-        for (i = 0; i < 2 ** 9; i = i + 1) begin
+        for (i = 0; i < 2 ** 11; i = i + 1) begin
             {oc, a, b} = i;
             #10;
         end
