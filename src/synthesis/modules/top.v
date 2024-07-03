@@ -7,24 +7,25 @@ module top #(
     input clk,
     input rst_n,
     input[2:0] btn,
-    input [9:0] sw,
+    input [8:0] sw,
     output [9:0] led,
     output [27:0] hex
 );
 
     wire clk_div_out;
-    clk_div #(DIVISOR) clk_div_inst(.clk(clk), .rst_n(rst_n), .out(clk_div_out));
+    clk_div #(.DIVISOR(DIVISOR)) clk_div_inst (.clk(clk), .rst_n(rst_n), .out(clk_div_out));
 
     wire mem_we;
     wire [ADDR_WIDTH-1:0] mem_addr;
     wire [DATA_WIDTH-1:0] mem_data;
     wire [DATA_WIDTH-1:0] mem_out;
-    wire [ADDR_WIDTH-1:0] pc, sp;
 
+    memory memory_inst(.clk(clk_div_out), .we(mem_we), .addr(mem_addr), .data(mem_data), .out(mem_out));
+
+    wire [ADDR_WIDTH-1:0] pc, sp;
     wire [DATA_WIDTH-1:0] cpu_out;
 
-    assign led[4:0] = cpu_out[4:0];
-    memory memory_inst(clk_div_out, mem_we, mem_addr, mem_data, mem_out);
+    assign led = {5'd0, cpu_out[4:0]};
 
     wire [3:0] sp_tens, sp_ones;
     wire [3:0] pc_tens, pc_ones;
@@ -39,9 +40,9 @@ module top #(
 
     cpu #(ADDR_WIDTH, DATA_WIDTH) CPU (
         .clk(clk_div_out),
-        .rst_n(sw[9]),
+        .rst_n(rst_n),
+        .in({{(DATA_WIDTH-4){1'b0}}, {sw[3:0]}}),
         .mem_in(mem_out),
-        .in({{(DATA_WIDTH-4){1'b0}},{sw[3:0]}}),
         .mem_we(mem_we),
         .mem_addr(mem_addr),
         .mem_data(mem_data),

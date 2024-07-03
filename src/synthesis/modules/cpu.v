@@ -14,7 +14,6 @@ module cpu #(
     output [ADDR_WIDTH-1:0] sp
 );
 
-
     /* CPU STARTING ADDRESS POINTERS */
     localparam INIT_FIRST_INSTRUCTION = 6'd8;
     localparam INIT_STACK_POINTER     = 6'd63;
@@ -150,9 +149,9 @@ module cpu #(
         A_ld = 1'b0;
         A_in = ALU_out;
         ALU_oc = 4'h0;
-        mem_we = 1'bz;
-        mem_addr = {(ADDR_WIDTH-1){1'bz}};
-        mem_data = {(DATA_WIDTH-1){1'bz}};
+        mem_we = MEM_WE_READ_BIT;
+        mem_addr = {(ADDR_WIDTH-1){1'b0}};
+        mem_data = {(DATA_WIDTH-1){1'b0}};
         
         case (state_reg)
             5'd0: begin // INIT
@@ -175,10 +174,8 @@ module cpu #(
                         state_next = 5'd6; // IN
                     INSTRUCTION_OUT:
                         state_next = 5'd9; // OUT
-                    INSTRUCTION_ADD:
-                        state_next = 5'd12; // ALU
-                    INSTRUCTION_SUB:
-                        state_next = 5'd12; // ALU
+                    INSTRUCTION_ADD,
+                    INSTRUCTION_SUB,
                     INSTRUCTION_MUL:
                         state_next = 5'd12; // ALU
                     INSTRUCTION_STOP:
@@ -187,8 +184,8 @@ module cpu #(
                         if ({IR_ADDRESS3_DI, IR_ADDRESS3} == 4'b0000)
                             state_next = 5'd25; // MOV
                         else if ({IR_ADDRESS3_DI, IR_ADDRESS3} == 4'b1000)
-                            state_next = 5'd4;
-                    default: // ERROR
+                            state_next = 5'd4; // FETCH 2
+                    default: // ERROR - FINISHED
                         state_next = 5'd31;
                 endcase
             end
@@ -202,17 +199,17 @@ module cpu #(
                 state_next = 5'd29;
             end
             5'd6: begin // IN0
-                mem_we = MEM_WE_READ_BIT;
-                mem_addr = IR_ADDRESS1;
                 if (IR_ADDRESS1_DI == ADDR_DIRECT_BIT) begin
-                    state_next = 5'd8; // IN2
+                    mem_we = MEM_WE_WRITE_BIT;
+                    mem_addr = IR_ADDRESS1;
+                    mem_data = in;
+                    state_next = 5'd1; // FETCH
+                end else begin
+                    mem_we = MEM_WE_READ_BIT;
+                    mem_addr = mem_in;
                 end
             end
             5'd7: begin // IN1
-                mem_we = MEM_WE_READ_BIT;
-                mem_addr = mem_in;
-            end
-            5'd8: begin // IN2
                 mem_we = MEM_WE_WRITE_BIT;
                 mem_addr = mem_in;
                 mem_data = in;
