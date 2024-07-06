@@ -18,6 +18,8 @@ module top;
 
     integer i;
 
+    always #5 clk = ~clk;
+
     initial begin
         $monitor("time = %4d oc = %b a = %b b = %b f = %b", $time, oc, a, b, f);
         for (i = 0; i < 2 ** 11; i = i + 1) begin
@@ -51,6 +53,5 @@ module top;
         );
     end
 
-    always #5 clk = ~clk;
 
-endmodule;
+endmodule

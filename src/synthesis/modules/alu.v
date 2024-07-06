@@ -18,24 +18,15 @@ module alu #(
 
     always @(*) begin
         case (oc)
-            ADD:
-                f = a + b;
-            SUB:
-                f = a - b;
-            MUL:
-                f = a * b;
-            DIV:
-                f = a / b;
-            NOT:
-                f = ~a;
-            XOR:
-                f = a ^ b;
-            OR:
-                f = a | b;
-            AND:
-                f = a & b;
-            default: 
-                f = {DATA_WIDTH{1'b0}};
+            ADD:     f = a + b;
+            SUB:     f = a - b;
+            MUL:     f = a * b;
+            DIV:     f = a / b;
+            NOT:     f = ~a;
+            XOR:     f = a ^ b;
+            OR:      f = a | b;
+            AND:     f = a & b;
+            default: f = {DATA_WIDTH{1'b0}};
         endcase
     end
 

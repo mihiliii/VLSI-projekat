@@ -215,7 +215,7 @@ module DE0_TOP
 		.FILE_NAME("mem_init.mif"),
 		.ADDR_WIDTH(6),
 		.DATA_WIDTH(16)
-	) top_inst (
+	) top_inst(
 		.clk(CLOCK_50),
 		.rst_n(SW[9]),
 		.btn(~BUTTON[2:0]),

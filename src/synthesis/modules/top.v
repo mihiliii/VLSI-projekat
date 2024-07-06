@@ -6,14 +6,14 @@ module top #(
 ) (
     input clk,
     input rst_n,
-    input[2:0] btn,
+    input [2:0] btn,
     input [8:0] sw,
     output [9:0] led,
     output [27:0] hex
 );
 
     wire clk_div_out;
-    clk_div #(.DIVISOR(DIVISOR)) clk_div_inst (.clk(clk), .rst_n(rst_n), .out(clk_div_out));
+    clk_div #(.DIVISOR(DIVISOR)) clk_div_inst(.clk(clk), .rst_n(rst_n), .out(clk_div_out));
 
     wire mem_we;
     wire [ADDR_WIDTH-1:0] mem_addr;
@@ -33,12 +33,12 @@ module top #(
     bcd bcd_sp(.in(sp), .tens(sp_tens), .ones(sp_ones));
     bcd bcd_pc(.in(pc), .tens(pc_tens), .ones(pc_ones));
 
-    ssd ssd_sp_tens (.in(sp_tens), .out(hex[27:21]));
-    ssd ssd_sp_ones (.in(sp_ones), .out(hex[20:14]));
-    ssd ssd_pc_tens (.in(pc_tens), .out(hex[13:7]));
-    ssd ssd_pc_ones (.in(pc_ones), .out(hex[6:0]));
+    ssd ssd_sp_tens(.in(sp_tens), .out(hex[27:21]));
+    ssd ssd_sp_ones(.in(sp_ones), .out(hex[20:14]));
+    ssd ssd_pc_tens(.in(pc_tens), .out(hex[13:7]));
+    ssd ssd_pc_ones(.in(pc_ones), .out(hex[6:0]));
 
-    cpu #(ADDR_WIDTH, DATA_WIDTH) CPU (
+    cpu #(ADDR_WIDTH, DATA_WIDTH) CPU(
         .clk(clk_div_out),
         .rst_n(rst_n),
         .in({{(DATA_WIDTH-4){1'b0}}, {sw[3:0]}}),
